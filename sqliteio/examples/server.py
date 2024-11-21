@@ -2,8 +2,12 @@ import asyncio
 from sqliteio.core import SQLiteSocket
 import signal
 import sys
+import platform
+
+server = None
 
 async def main():
+    global server
     server = SQLiteSocket("example.db", peer_id="server1", is_server=True)
 
     async def handle_connection(data):
@@ -14,6 +18,10 @@ async def main():
 
     async def handle_message(data):
         print(f"Received message: {data}")
+        # Modify the message slightly
+        modified_message = f"{data['text']} - echoed by server"
+        # Broadcast the modified message to all clients
+        await server.emit("message", {"text": modified_message})
 
     server.on("onconnection", handle_connection)
     server.on("ondisconnection", handle_disconnection)
@@ -33,8 +41,8 @@ async def main():
 def shutdown(loop, task):
     """Gracefully shutdown the event loop."""
     print("Received termination signal. Shutting down...")
+    server.stop()
     task.cancel()
-    loop.stop()
 
 if __name__ == "__main__":
     try:
@@ -46,16 +54,24 @@ if __name__ == "__main__":
     # Create the server task
     server_task = loop.create_task(main())
 
-    # Add signal handler for graceful shutdown
-    for sig in (signal.SIGINT, signal.SIGTERM):
-        loop.add_signal_handler(sig, shutdown, loop, server_task)
+    # Check the operating system
+    if platform.system() != "Windows":
+        # Add signal handlers for Unix-like systems
+        for sig in (signal.SIGINT, signal.SIGTERM):
+            loop.add_signal_handler(sig, shutdown, loop, server_task)
+    else:
+        # On Windows, handle KeyboardInterrupt
+        pass  # No signal handlers needed
 
     try:
         loop.run_forever()
     except KeyboardInterrupt:
-        pass
+        print("Received KeyboardInterrupt. Shutting down...")
+        shutdown(loop, server_task)
     finally:
         # Ensure all tasks are completed before closing the loop
-        loop.run_until_complete(asyncio.gather(*asyncio.all_tasks(loop), return_exceptions=True))
+        loop.run_until_complete(
+            asyncio.gather(*asyncio.all_tasks(loop), return_exceptions=True)
+        )
         loop.close()
         print("Event loop closed.")
