@@ -139,28 +139,28 @@ class SQLiteSocket:
             if room:
                 # Broadcast to a room
                 if sendToOffline:
-                    peers = session.query(Session.peer).filter(Session.peer.in_(self.rooms.get(room, []))).all()
+                    peers = session.query(Session.peer_id).filter(Session.peer_id.in_(self.rooms.get(room, []))).all()
                 else:
-                    peers = session.query(Session.peer).filter((Session.peer.in_(self.rooms.get(room, []))) & (Session.last_heartbeat != None)).all()
+                    peers = session.query(Session.peer_id).filter((Session.peer_id.in_(self.rooms.get(room, []))) & (Session.last_heartbeat != None)).all()
                 for peer in peers:
-                    if not self._should_exclude(peer.peer, exclude, exclude_pattern):
-                        await self._send_event(peer.peer, event, data)
+                    if not self._should_exclude(peer.peer_id, exclude, exclude_pattern):
+                        await self._send_event(peer.peer_id, event, data)
             elif to:
                 # Send to a specific client
-                client = session.query(Session.peer).filter(Session.peer_id == to).first()
+                client = session.query(Session.peer_id).filter(Session.peer_id == to).first()
                 if client:
-                    await self._send_event(client.peer, event, data)
+                    await self._send_event(client.peer_id, event, data)
                 else:
                     logger.warning(f"Client {to} not found for emitting event.")
             else:
                 # Broadcast to all peers except those in the exclude list or matching the pattern
                 if sendToOffline:
-                    peers = session.query(Session.peer).all()
+                    peers = session.query(Session.peer_id).all()
                 else:
-                    peers = session.query(Session.peer).filter( Session.last_heartbeat != None ).all()
+                    peers = session.query(Session.peer_id).filter( Session.last_heartbeat != None ).all()
                 for peer in peers:
-                    if not self._should_exclude(peer.peer, exclude, exclude_pattern):
-                        await self._send_event(peer.peer, event, data)
+                    if not self._should_exclude(peer.peer_id, exclude, exclude_pattern):
+                        await self._send_event(peer.peer_id, event, data)
 
     def _should_exclude(self, peer_id, exclude, pattern):
         """Determine if a peer should be excluded based on exclude list or pattern."""
@@ -355,9 +355,7 @@ class SQLiteSocket:
     async def stopSession(self):
         """Set the heartbeat of this session to null."""
         with self.Session() as session:
-            session.query(Session).filter(Session.sid == self.sid).update(
-                {"last_heartbeat": None}
-            )
+            session.delete(self.sessionEntry)
             session.commit()
 
 
