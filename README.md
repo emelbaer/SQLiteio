@@ -1,6 +1,13 @@
 # SQLiteio
 A socetio api style library but not made with websockets or long polling, it's build on a common SQLite database file.
 
+---
+**WARNING**
+
+This package is currently under construction.
+
+---
+
 Use Example:
 ```python
 import asyncio
@@ -37,9 +44,3 @@ async def start_client():
 if __name__ == "__main__":
   asyncio.run(start_client())
 ```
----
-**WARNING**
-
-This package is currently under construction.
-
----
